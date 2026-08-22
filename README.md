@@ -1,5 +1,9 @@
 # Doubao DSH Plugin
 
+[![npm version](https://img.shields.io/npm/v/doubao-dsh-plugin.svg?color=blue)](https://www.npmjs.com/package/doubao-dsh-plugin)
+[![license](https://img.shields.io/npm/l/doubao-dsh-plugin.svg)](https://github.com/Practice019/dsh-doubao-plugin/blob/master/LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/Practice019/dsh-doubao-plugin.svg)](https://github.com/Practice019/dsh-doubao-plugin/releases)
+
 DSH 插件：通过本地 Doubao Relay 提供 `doubao_ask` 动态搜索/图片生成/多模态识图工具，
 并支持**粘贴图片 → 本地路径**（paste-to-path）。
 
@@ -47,10 +51,16 @@ dsh plugin --profile web add doubao-dsh-plugin
 3. ⚠️ 该动作年久未更新、存在 bug，需把 `c#code.txt` 中的代码替换到动作里（端口保持
    `56666`），替换后重新运行动作，Relay 即监听 `127.0.0.1:56666`。
 
-![alt text](image-1.png)
-![alt text](image-2.png)
-![alt text](image-3.png)
-把 `c#code.txt` 中的代码替换到动作里
+替换代码的操作步骤：
+
+1. 在 Quicker 托盘/动作上右键，选择**编辑**。
+2. 在步骤列表中找到**运行 C# 代码**步骤。
+3. 进入该步骤的编辑界面（运行模式选“普通模式 v2 (Roslyn)”），把 `c#code.txt` 中的
+   代码**整体替换**脚本代码区，保存后重新运行动作。
+
+![右键动作菜单，选择“编辑”](image-1.png)
+![步骤列表中高亮“运行 C# 代码”步骤](image-2.png)
+![“运行 C# 代码”步骤的代码编辑界面](image-3.png)
 
 未启动 Relay 时，工具调用会报 `Doubao Relay request failed`。
 

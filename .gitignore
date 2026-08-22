@@ -1,0 +1,8 @@
+# 依赖与构建产物
+node_modules/
+*.tgz
+
+# 本地环境
+.claude/
+.DS_Store
+Thumbs.db

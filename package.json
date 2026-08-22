@@ -1,6 +1,6 @@
 {
   "name": "doubao-dsh-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "DeepSeek Harness 插件：通过本地 Doubao Relay 提供 doubao_ask 联网搜索/图片生成/多模态识图工具，并支持粘贴图片转本地路径（paste-to-path）。",
   "keywords": [
     "dsh",

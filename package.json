@@ -1,0 +1,40 @@
+{
+  "name": "doubao-dsh-plugin",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness 插件：通过本地 Doubao Relay 提供 doubao_ask 联网搜索/图片生成/多模态识图工具，并支持粘贴图片转本地路径（paste-to-path）。",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "doubao",
+    "web-search",
+    "image-generation",
+    "vision",
+    "paste-to-path",
+    "cordis"
+  ],
+  "license": "MIT",
+  "author": "doubao-dsh-plugin contributors",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.mjs",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  }
+}

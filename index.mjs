@@ -455,9 +455,11 @@ export function apply(ctx) {
       '同样优先调用 doubao_ask 工具，豆包会生成图片并以 markdown 图片链接的形式返回。' +
       '当用户提供图片要求识别、描述、分析（多模态识图）时，也调用 doubao_ask 工具，' +
       '并把 image 参数设为该图片的 URL 或本地文件路径，豆包会识图并以文字回答。' +
+      '多张图片时：把所有图片的 URL/路径用换行分隔一并填入 image 参数（或传字符串数组），' +
+      '豆包会逐一识别。' +
       '用户粘贴的图片会被保存为本地文件路径（形如 C:\\Users\\...\\doubao-dsh-paste\\...\\paste.png）' +
-      '并以纯文本形式插入消息；需要查看或识别这类图片时，同样调用 doubao_ask，' +
-      '把 image 参数设为该路径。' +
+      '并以纯文本形式插入消息（多张图每行一个路径）；需要查看或识别这类图片时，同样调用 doubao_ask，' +
+      '把 image 参数设为该路径（多张图用换行分隔）。' +
       '工具返回的 content 字段就是豆包的完整回答。回复用户时，必须把 content 的完整内容原样呈现：' +
       '不得总结、不得删减、不得只摘要点、不得遗漏任何条目、数据或细节；' +
       '把完整信息直接转述给用户，而不是自己重新归纳。' +
@@ -486,7 +488,7 @@ export function apply(ctx) {
         },
         image: {
           type: 'string',
-          description: '可选：要识别/分析的图片——http(s) 图片 URL、base64 data URL，或本地图片文件路径（本地图超过约 1.5MB 会自动压缩后发送）。'
+          description: '可选：要识别/分析的图片——http(s) 图片 URL、base64 data URL，或本地图片文件路径（本地图超过约 1.5MB 会自动压缩后发送）。多张图用换行分隔多个 URL/路径，或传字符串数组，豆包会逐一识别。'
         },
         system: {
           type: 'string',
@@ -544,19 +546,32 @@ export function apply(ctx) {
       const newConversation = args.new_conversation !== false
       const system = args.system ? String(args.system) : DEFAULT_SYSTEM
 
-      // 多模态识图：提供 image 参数时，把图片（URL / data URL / 本地路径）转成
-      // OpenAI 兼容的 content 数组格式发给豆包，豆包识图后返回文字。
-      const image = args.image ? String(args.image).trim() : ''
+      // 多模态识图：image 参数支持单图或多图——传字符串数组，或字符串内用换行分隔
+      // 多个 URL/路径。逐张解析（本地大图自动压缩），全部转成 OpenAI 兼容的
+      // 多 image_url content 数组发给豆包，豆包逐一识别后返回文字。
+      const rawImage = args.image
+      let imageInputs = []
+      if (Array.isArray(rawImage)) {
+        imageInputs = rawImage.filter((item) => typeof item === 'string' && item.trim().length > 0)
+      } else if (typeof rawImage === 'string' && rawImage.trim().length > 0) {
+        imageInputs = rawImage
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      }
       let userContent = query
-      if (image) {
+      if (imageInputs.length > 0) {
         try {
-          const imageRef = await resolveImageInput(image)
+          const imageRefs = []
+          for (const input of imageInputs) {
+            imageRefs.push(await resolveImageInput(input))
+          }
           userContent = [
             { type: 'text', text: query },
-            { type: 'image_url', image_url: { url: imageRef } }
+            ...imageRefs.map((url) => ({ type: 'image_url', image_url: { url } }))
           ]
         } catch (error) {
-          throw new Error('无法读取图片（' + image + '）：' + (error && error.message ? error.message : String(error)))
+          throw new Error('无法读取图片（' + imageInputs.join(' | ') + '）：' + (error && error.message ? error.message : String(error)))
         }
       }
 
@@ -709,7 +724,8 @@ export function apply(ctx) {
             new_conversation: newConversation,
             stream: false,
             model: payload.model,
-            has_image: Boolean(image)
+            has_image: imageInputs.length > 0,
+            image_count: imageInputs.length
           },
           response: { status: response.status }
         }

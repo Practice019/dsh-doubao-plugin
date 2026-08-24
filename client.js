@@ -177,11 +177,13 @@ window.__ModuleLoader__.load({
       event.stopImmediatePropagation()
       Promise.all(files.map(uploadOne))
         .then((results) => {
+          // 多张图按换行分隔插入（单张无影响），与 doubao_ask 的 image 参数
+          // "换行分隔多路径"约定一致，模型可一次性把多张图传给豆包识别。
           var text = results
             .map((r) => r.path)
             .filter(Boolean)
-            .join(' ')
-          if (text) insertText(target, `${text} `)
+            .join('\n')
+          if (text) insertText(target, `${text}\n`)
         })
         .catch((error) => {
           // A 404 here means the route vanished AFTER a verdict confirmed it

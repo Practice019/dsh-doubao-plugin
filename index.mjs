@@ -488,7 +488,7 @@ export function apply(ctx) {
         },
         image: {
           type: 'string',
-          description: '可选：要识别/分析的图片——http(s) 图片 URL、base64 data URL，或本地图片文件路径（本地图超过约 1.5MB 会自动压缩后发送）。多张图用换行分隔多个 URL/路径，或传字符串数组，豆包会逐一识别。'
+          description: '可选：要识别/分析的图片——http(s) 图片 URL、base64 data URL，或本地图片文件路径（本地图超过约 512KB 会自动压缩后发送）。多张图用换行分隔多个 URL/路径，或传字符串数组，豆包会逐一识别。'
         },
         system: {
           type: 'string',

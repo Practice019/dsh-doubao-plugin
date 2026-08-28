@@ -14,6 +14,13 @@
 // plain text. A text-only model then sees a file path, which it can hand to
 // the doubao_ask tool's `image` parameter so Doubao reads the picture.
 //
+// Insertion targets every editable surface: TEXTAREA/INPUTs use execCommand
+// plus the prototype-setter fallback, and contenteditable hosts (the harness
+// composer is a Lexical contenteditable div) go through a synthetic
+// beforeinput insertText carrying text/plain in dataTransfer, which Lexical
+// applies as raw text with real line breaks. The old TEXTAREA/INPUT-only gate
+// made pastes vanish silently once the composer moved to contenteditable.
+//
 // Hand-written in the lazy-CJS bundle protocol (window.__ModuleLoader__.load
 // with a factory returning cordis-plugin exports), so no build step and no
 // imports from dsh client packages. The id must equal the loader entry name
@@ -40,21 +47,94 @@ window.__ModuleLoader__.load({
 
     function insertText(target, text) {
       var el = target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') ? target : document.activeElement
-      if (!el || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT')) return
+      if (!el) return
+      var plain = el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'
+      // The harness composer is a Lexical contenteditable div; accept any
+      // editable element (plain inputs OR contenteditable) instead of the old
+      // TEXTAREA/INPUT-only gate that silently swallowed every paste.
+      if (!plain && el.isContentEditable !== true) return
       el.focus()
-      // execCommand fires the input event React's controlled textarea needs;
-      // the prototype-setter dance is the fallback for engines dropping it.
-      var inserted = false
-      try {
-        inserted = document.execCommand('insertText', false, text)
-      } catch {
-        inserted = false
+      if (plain) {
+        // execCommand fires the input event React's controlled textarea needs;
+        // the prototype-setter dance is the fallback for engines dropping it.
+        var inserted = false
+        try {
+          inserted = document.execCommand('insertText', false, text)
+        } catch {
+          inserted = false
+        }
+        if (!inserted) {
+          var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype
+          var setter = Object.getOwnPropertyDescriptor(proto, 'value').set
+          setter.call(el, el.value + text)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        return
       }
-      if (!inserted) {
-        var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype
-        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set
-        setter.call(el, el.value + text)
+      insertTextEditable(el, text)
+    }
+
+    // Insert into a contenteditable host (the Lexical composer). Lexical
+    // applies a synthetic beforeinput `insertText` ONLY when `data` is null
+    // and the payload rides in `dataTransfer` as text/plain: that path runs
+    // its raw insert, which turns embedded '\n' into real line breaks.
+    // Feeding the string as `data` (or via execCommand) garbles newlines
+    // (segments come back merged and reordered), so multi-path pastes would
+    // land as one mangled line.
+    function insertTextEditable(el, text) {
+      var dt = null
+      try {
+        dt = new DataTransfer()
+      } catch {
+        dt = null
+      }
+      if (dt && typeof dt.setData === 'function') {
+        try {
+          dt.setData('text/plain', text)
+          var handled = !el.dispatchEvent(
+            new InputEvent('beforeinput', {
+              bubbles: true,
+              cancelable: true,
+              inputType: 'insertText',
+              data: null,
+              dataTransfer: dt
+            }),
+          )
+          // The editor preventDefaults the event when it took the insert;
+          // do not fall through and double-insert.
+          if (handled) return
+        } catch {
+          // fall through to the manual fallback below
+        }
+      }
+      // Manual caret insertion for plain contenteditable hosts that did not
+      // act on the beforeinput (best effort; a raw '\n' stays literal there).
+      try {
+        var selection = window.getSelection()
+        var range = null
+        if (
+          selection &&
+          selection.rangeCount > 0 &&
+          el.contains(selection.getRangeAt(0).commonAncestorContainer)
+        ) {
+          range = selection.getRangeAt(0)
+        } else {
+          range = document.createRange()
+          range.selectNodeContents(el)
+          range.collapse(false)
+        }
+        range.deleteContents()
+        var node = document.createTextNode(text)
+        range.insertNode(node)
+        range.setStartAfter(node)
+        range.collapse(true)
+        if (selection) {
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
         el.dispatchEvent(new Event('input', { bubbles: true }))
+      } catch {
+        // Nothing else to try; keep the paste consumed rather than half-done.
       }
     }
 
